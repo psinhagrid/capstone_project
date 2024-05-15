@@ -31,14 +31,23 @@ className = [
 ]
 
 className_finetuned = ['Hardhat', 'Mask', 'NO_Hardhat', 'NO-Mask', 'NO-Safety Vest', 'Person', 
-                       "Safety Cone", 'Safety Vest', 'machinery', 'vehicle']
+                       'Safety Cone', 'Safety Vest', 'machinery', 'vehicle']
+
+
+# Frame Counter initialized
+frame_number = 0
+
+# Voilations dictionary initialized
+voilation_dict = {}
+
 ###############################################################################################
 
 """       UTILS         """
 
 def raise_flag(img):
 
-    return img
+    print ("Flag_raised")
+    quit()
 
 
 
@@ -66,21 +75,55 @@ def bounding_box(box,img, show_box_for_all):
     return x1,y1,x2,y2,conf
 
 
-def object_counter(img, box, x_center, y_center, Id):
+def object_counter(img, box, x_center, y_center, Id, currentClass):
 
     global current_count
-    # Making a line for detection 
-    # Line limits
-    limits = [400, 297, 673, 297]
-    cv2.line(img,(limits[0],limits[1]), (limits[2], limits[3]), (0,0,255), 5)
+    global voilation_dict
+    global frame_number
 
 
-    if limits[0] < x_center < limits[2] and limits[1] - 15 < y_center < limits[3] + 15:
-        if current_count.count(Id) == 0:
-            current_count.append(Id)
+    if (currentClass in ['NO_Hardhat', 'NO-Safety Vest']):
+
+        print ("\n\n ENTERED \n\n")
+        if (Id not in voilation_dict.keys()):
+            voilation_dict[Id] = [frame_number, 1]
+
+        else :
+            
+            if (voilation_dict[Id][1] == -999):
+                pass
+
+
+            elif (voilation_dict[Id][0] in range [frame_number-15, frame_number+15]):
+
+                if (voilation_dict[Id][1] == 9):
+                    voilation_dict[Id][1] = -999
+                    raise_flag()
+
+                else :
+                    voilation_dict[Id][0] = frame_number
+                    voilation_dict[Id][1] += 1
+
+            elif (voilation_dict[Id][0] not in range [frame_number-15, frame_number+15]):
+
+                voilation_dict[Id][0] == frame_number
+                voilation_dict[Id][1] = 1
+
+            else :
+
+                print ("UNKNOWN VIOLATION")
+                quit()
+                
+                
+
+
+        frame = raise_flag(img)
+    # if limits[0] < x_center < limits[2] and limits[1] - 15 < y_center < limits[3] + 15:
+    #     if current_count.count(Id) == 0:
+    #         current_count.append(Id)
             
 
-    cvzone.putTextRect(img, f'Count : {len(current_count)}', (50,50))
+    #cvzone.putTextRect(img, f'Count : {len(current_count)}', (50,50))
 
 
 def object_ID(img, box, cls, result_tracker, current_class, class_names, object_counter_requirement):
@@ -90,31 +133,26 @@ def object_ID(img, box, cls, result_tracker, current_class, class_names, object_
     
     """
 
-    if (class_names == None or class_names == [] or current_class in class_names):
-        # Iterate over the tracked results
-        for results in result_tracker:
-            x1, y1, x2, y2, Id = results
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-            w, h = x2 - x1, y2 - y1
-            
-            # Class Name
-            cls = int(box.cls[0])
-            currentClass = className[cls]
-            
-            # Display the ID on the image
-            cvzone.putTextRect(img, f"ID - {int(Id)}", (max(x1+w-10, 0), max(y1 - 10, 0)), 1.5, 2)
 
-            x_center = x1+w//2
-            y_center = y1+h//2
+    for results in result_tracker:
+        x1, y1, x2, y2, Id = results
+        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+        w, h = x2 - x1, y2 - y1
+        
+        # Class Name
+        cls = int(box.cls[0])
+        currentClass = className[cls]
+        
+        # Display the ID on the image
+        cvzone.putTextRect(img, f"ID - {int(Id)}", (max(x1+w-10, 0), max(y1 - 10, 0)), 1.5, 2)
 
-
-            if (currentClass in ['NO_Hardhat', 'NO-Safety Vest']):
-
-                frame = raise_flag(img)
+        x_center = x1+w//2
+        y_center = y1+h//2
 
 
-            if object_counter_requirement == True:
-                object_counter(img, box, x_center, y_center, Id)
+
+        if object_counter_requirement == True:
+            object_counter(img, box, x_center, y_center, Id, currentClass)
 
             
 
@@ -136,6 +174,9 @@ def class_to_track(img, box, cls, detections, current_class, class_names, object
 
 
     if (class_names == None or class_names == [] or current_class in class_names):
+        
+        global frame_number 
+        frame_number += 1
 
         x1,y1,x2,y2,conf = bounding_box(box,img, show_box_for_all=True)
         current_array = np.array([x1,y1,x2,y2,conf])        
@@ -170,19 +211,21 @@ def class_to_track(img, box, cls, detections, current_class, class_names, object
 address1 = '/Users/psinha/Documents/capstone_project/venv/YOLO_basics/helmet.mp4'
 address2 = '/Users/psinha/Documents/capstone_project/venv/YOLO_basics/helmet2.mp4'
 
-address = address2
+address = address1
 
 # Available modes "LIVE" and "MP4"
 video_mode = "MP4"
 
 
 # Set if object counter is needed. Options are True and False
-object_counter_requirement = False
+object_counter_requirement = True
 
 
 # Set required class list
 class_names = ['Hardhat', 'Mask', 'NO_Hardhat', 'NO-Mask', 'NO-Safety Vest', 'Person', "Safety Cone",
                  'Safety Vest', 'machinery', 'vehicle']
+
+
 
 
 
@@ -199,6 +242,9 @@ tracker = Sort(max_age=20, min_hits=2, iou_threshold=0.3)   # Used for tracking 
 
 
 def main(address, video_mode, object_counter_requirement, class_names):
+
+
+
 
     # Tracking
     tracker = Sort(max_age=20, min_hits=2, iou_threshold=0.3)   # Used for tracking of cars
@@ -223,6 +269,10 @@ def main(address, video_mode, object_counter_requirement, class_names):
     while True:
 
         success, img = cap.read()
+
+        if not success:
+            print("No more Frames to capture")
+            break  # Exit the loop if reading fails
 
         if video_mode == "MP4":
             #imgRegion = cv2.bitwise_and(img,mask)       # Bitwise And of video and mask
@@ -261,6 +311,8 @@ def main(address, video_mode, object_counter_requirement, class_names):
         torch.mps.empty_cache()
         cv2.waitKey(1)
 
+        print ("Frame Number : ", frame_number)
+
 
     """
 
@@ -269,7 +321,7 @@ def main(address, video_mode, object_counter_requirement, class_names):
     """
 
     ## For CPU
-    ##     Speed: 1.4ms preprocess, 217.8ms inference, 0.5ms postprocess per image at shape (1, 3, 384, 640) 
+    ##     Speed: 1.4ms preprocess, 217.8ms inference, 0.5ms postprocess per image at shape (1, 3, 384, 640) p
 
     ## For GPU
     ##     Speed: 1.6ms preprocess, 36.3ms inference, 12.9ms postprocess per image at shape (1, 3, 384, 640)
